@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pull Requests</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #0d1117;
+        color: #c9d1d9;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 13px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        height: 100vh;
+      }
+
+      .container {
+        display: flex;
+        height: 100vh;
+        min-width: fit-content;
+        padding: 16px;
+        gap: 16px;
+      }
+
+      .column {
+        width: 400px;
+        padding: 12px;
+        height: calc(100vh - 32px);
+        overflow-y: auto;
+      }
+
+      .column-header {
+        font-weight: 600;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        font-size: 14px;
+      }
+
+      .pr-card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 4px;
+        padding: 16px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: background-color 0.1s;
+      }
+
+      .pr-card:hover {
+        background: #1c2128;
+        border-color: #8b949e;
+      }
+
+      .pr-card.draft {
+        opacity: 0.4;
+      }
+
+      .pr-card.review-requested {
+        border-color: rgba(255, 165, 0, 0.4);
+        box-shadow: 0 0 10px rgba(255, 165, 0, 0.2);
+      }
+
+      .pr-title {
+        font-weight: 500;
+        margin-bottom: 12px;
+        line-height: 1.3;
+        color: #f0f6fc;
+      }
+
+      .pr-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+      }
+
+      .pr-title-text {
+        font-weight: 500;
+        line-height: 1.3;
+        color: #f0f6fc;
+        flex: 1;
+        margin-right: 8px;
+      }
+
+      .pr-time-ago {
+        font-size: 10px;
+        color: #7d8590;
+        opacity: 0.8;
+        white-space: nowrap;
+      }
+
+      .review-status {
+        font-size: 11px;
+        color: #7d8590;
+        cursor: help;
+        position: relative;
+      }
+
+      .review-approved {
+        color: #56d364;
+        opacity: 0.8;
+      }
+
+      .inline-reviews {
+        font-size: 10px;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 8px;
+        margin-top: 2px;
+        max-width: 200px;
+        overflow: hidden;
+      }
+
+      .inline-review-item {
+        font-size: 10px;
+        white-space: nowrap;
+      }
+
+      .inline-review-item.status-success {
+        color: #56d364;
+      }
+
+      .inline-review-item.status-failure {
+        color: #f85149;
+      }
+
+      .inline-review-item.status-pending {
+        color: #d29922;
+      }
+
+      .inline-review-item.status-neutral {
+        color: #7d8590;
+      }
+
+      .review-tooltip {
+        position: absolute;
+        background: #21262d;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 8px;
+        min-width: 200px;
+        z-index: 1000;
+        display: none;
+        font-size: 11px;
+        box-shadow: 0 8px 24px rgba(1, 4, 9, 0.85);
+      }
+
+      .review-tooltip-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 0;
+        color: #c9d1d9;
+      }
+
+      .review-tooltip-status {
+        font-size: 10px;
+        min-width: 12px;
+      }
+
+      .pr-meta {
+        font-size: 11px;
+        color: #7d8590;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .lines-added {
+        color: #56d364;
+        opacity: 0.7;
+      }
+
+      .checks-status {
+        font-size: 11px;
+        color: #7d8590;
+        opacity: 0.8;
+      }
+
+      .checks-pass {
+        color: #56d364;
+        opacity: 0.7;
+      }
+
+      .checks-fail {
+        color: #f85149;
+        opacity: 0.7;
+      }
+
+      .checks-pending {
+        color: #d29922;
+        opacity: 0.7;
+      }
+
+      .checks-tooltip {
+        position: absolute;
+        background: #21262d;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 8px;
+        min-width: 200px;
+        z-index: 1000;
+        display: none;
+        font-size: 11px;
+        box-shadow: 0 8px 24px rgba(1, 4, 9, 0.85);
+      }
+
+      .checks-tooltip-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 0;
+        color: #c9d1d9;
+        cursor: pointer;
+        border-radius: 3px;
+        padding: 4px 6px;
+        margin: 1px 0;
+        transition: background-color 0.1s;
+      }
+
+      .checks-tooltip-item:hover {
+        background: #30363d;
+      }
+
+      .checks-tooltip-status {
+        font-size: 10px;
+        min-width: 12px;
+      }
+
+      .checks-tooltip-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .status-success {
+        color: #56d364;
+      }
+
+      .status-failure {
+        color: #f85149;
+      }
+
+      .status-pending {
+        color: #d29922;
+      }
+
+      .status-neutral {
+        color: #7d8590;
+      }
+
+      .loading {
+        text-align: center;
+        color: #7d8590;
+        padding: 20px;
+      }
+
+      .error {
+        text-align: center;
+        color: #f85149;
+        padding: 20px;
+      }
+
+      .setup-page {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: #0d1117;
+        color: #c9d1d9;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .setup-form {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 32px;
+        width: 400px;
+        max-width: 90vw;
+      }
+
+      .setup-title {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 24px;
+        text-align: center;
+        color: #f0f6fc;
+      }
+
+      .setup-field {
+        margin-bottom: 20px;
+      }
+
+      .setup-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: #f0f6fc;
+      }
+
+      .setup-input {
+        width: 100%;
+        padding: 12px;
+        font-size: 14px;
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        color: #c9d1d9;
+        box-sizing: border-box;
+      }
+
+      .setup-input:focus {
+        outline: none;
+        border-color: #1f6feb;
+        box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.3);
+      }
+
+      .setup-button {
+        width: 100%;
+        padding: 12px;
+        font-size: 14px;
+        font-weight: 500;
+        background: #238636;
+        border: 1px solid #238636;
+        border-radius: 6px;
+        color: #ffffff;
+        cursor: pointer;
+        transition: background-color 0.1s;
+      }
+
+      .setup-button:hover {
+        background: #2ea043;
+        border-color: #2ea043;
+      }
+
+      .setup-button:disabled {
+        background: #30363d;
+        border-color: #30363d;
+        color: #7d8590;
+        cursor: not-allowed;
+      }
+
+      .setup-help {
+        font-size: 12px;
+        color: #7d8590;
+        margin-top: 8px;
+        line-height: 1.4;
+      }
+
+      .setup-help a {
+        color: #58a6ff;
+        text-decoration: none;
+      }
+
+      .setup-help a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="kanban-board">
+      <div class="loading">Loading pull requests...</div>
+    </div>
+
+    <script>
+      // GitHub API configuration
+      let GITHUB_KEY = localStorage.getItem("github_key") || "";
+      const REPO_OWNER = "myjunior"; // Replace with repository owner
+      const REPO_NAME = "junior"; // Replace with repository name
+      let ACCOUNT_NAME = localStorage.getItem("account_name") || "";
+
+      // Username mapping
+      const NAME_MAP = {
+        mosnicholas: "Nico",
+        lucodeco: "Lucas",
+        MichaelSextonJR: "Mike",
+        "sethd-junior": "Seth",
+        "gustavo-juniorai": "Gustavo",
+        "ykim-24": "Daniel",
+        "dependabot[bot]": "Dependabot",
+      };
+
+      function showSetupForm() {
+        document.body.innerHTML = `
+          <div class="setup-page">
+            <div class="setup-form">
+              <h1 class="setup-title">GitHub Pull Requests</h1>
+              
+              <div class="setup-field">
+                <label class="setup-label" for="github-key">GitHub Personal Access Token</label>
+                <input 
+                  type="password" 
+                  id="github-key" 
+                  class="setup-input" 
+                  placeholder="ghp_..."
+                  value="${GITHUB_KEY}"
+                  onkeypress="if(event.key==='Enter') window.saveSetupAndStart()"
+                />
+                <div class="setup-help">
+                  Create a token at <a href="https://github.com/settings/tokens" target="_blank">GitHub Settings</a>.
+                  Select "repo" scope.
+                </div>
+              </div>
+
+              <div class="setup-field">
+                <label class="setup-label" for="account-name">Your GitHub Username</label>
+                <input 
+                  type="text" 
+                  id="account-name" 
+                  class="setup-input" 
+                  placeholder="your-github-username"
+                  value="${ACCOUNT_NAME}"
+                  onkeypress="if(event.key==='Enter') window.saveSetupAndStart()"
+                />
+              </div>
+
+              <button class="setup-button" onclick="window.saveSetupAndStart()">
+                Save & Start
+              </button>
+            </div>
+          </div>
+        `;
+
+        // Focus the first empty field
+        setTimeout(() => {
+          const githubKeyInput = document.getElementById("github-key");
+          const accountNameInput = document.getElementById("account-name");
+
+          if (!GITHUB_KEY) {
+            githubKeyInput.focus();
+          } else if (!ACCOUNT_NAME) {
+            accountNameInput.focus();
+          }
+        }, 100);
+      }
+
+      function saveSetupAndStart() {
+        const githubKey = document.getElementById("github-key").value.trim();
+        const accountName = document
+          .getElementById("account-name")
+          .value.trim();
+
+        if (!githubKey || !accountName) {
+          alert("Please fill in both fields");
+          return;
+        }
+
+        // Save to localStorage
+        localStorage.setItem("github_key", githubKey);
+        localStorage.setItem("account_name", accountName);
+
+        // Update global variables
+        GITHUB_KEY = githubKey;
+        ACCOUNT_NAME = accountName;
+
+        // Recreate the original page structure
+        document.body.innerHTML = `
+          <div class="container" id="kanban-board">
+            <div class="loading">Loading pull requests...</div>
+          </div>
+        `;
+
+        // Start the app
+        fetchPullRequests();
+      }
+
+      // Make function globally accessible
+      window.saveSetupAndStart = saveSetupAndStart;
+
+      async function fetchPullRequests() {
+        if (!GITHUB_KEY || !ACCOUNT_NAME) {
+          showSetupForm();
+          return;
+        }
+
+        try {
+          // Fetch PRs with more details in a single request
+          const response = await fetch(
+            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/pulls?state=open&per_page=100`,
+            {
+              headers: {
+                Authorization: `token ${GITHUB_KEY}`,
+                Accept: "application/vnd.github.v3+json",
+              },
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(`GitHub API error: ${response.status}`);
+          }
+
+          const pullRequests = await response.json();
+
+          // Batch fetch both check runs and PR details for all PRs in parallel
+          const checkPromises = pullRequests.map((pr) =>
+            fetchPRChecks(pr.head.sha, pr.number).catch((error) => {
+              console.log(`Error fetching checks for PR #${pr.number}:`, error);
+              return { status: "none", checks: [] };
+            })
+          );
+
+          const detailPromises = pullRequests.map((pr) =>
+            fetchPRDetails(pr.number).catch((error) => {
+              console.log(
+                `Error fetching details for PR #${pr.number}:`,
+                error
+              );
+              return { additions: 0 };
+            })
+          );
+
+          const reviewPromises = pullRequests.map((pr) =>
+            fetchPRReviews(pr.number).catch((error) => {
+              console.log(
+                `Error fetching reviews for PR #${pr.number}:`,
+                error
+              );
+              return { status: "none", reviews: [], requestedReviewers: [] };
+            })
+          );
+
+          const [checksResults, detailsResults, reviewsResults] =
+            await Promise.all([
+              Promise.all(checkPromises),
+              Promise.all(detailPromises),
+              Promise.all(reviewPromises),
+            ]);
+
+          // Group PRs by user
+          const prsByUser = {};
+
+          pullRequests.forEach((pr, index) => {
+            const username = pr.user.login;
+
+            if (!prsByUser[username]) {
+              prsByUser[username] = [];
+            }
+
+            prsByUser[username].push({
+              ...pr,
+              additions: detailsResults[index].additions || 0,
+              checksStatus: checksResults[index],
+              reviewStatus: reviewsResults[index],
+            });
+          });
+
+          renderKanbanBoard(prsByUser);
+        } catch (error) {
+          document.getElementById(
+            "kanban-board"
+          ).innerHTML = `<div class="error">Error loading PRs: ${error.message}</div>`;
+        }
+      }
+
+      async function fetchPRDetails(prNumber) {
+        try {
+          const response = await fetch(
+            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/pulls/${prNumber}`,
+            {
+              headers: {
+                Authorization: `token ${GITHUB_KEY}`,
+                Accept: "application/vnd.github.v3+json",
+              },
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            return {
+              additions: data.additions || 0,
+              deletions: data.deletions || 0,
+              changed_files: data.changed_files || 0,
+            };
+          }
+
+          return { additions: 0, deletions: 0, changed_files: 0 };
+        } catch (error) {
+          console.log(`Error fetching PR details for #${prNumber}:`, error);
+          return { additions: 0, deletions: 0, changed_files: 0 };
+        }
+      }
+
+      async function fetchPRReviews(prNumber) {
+        try {
+          // Fetch both reviews and requested reviewers
+          const [reviewsResponse, prResponse] = await Promise.all([
+            fetch(
+              `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/pulls/${prNumber}/reviews`,
+              {
+                headers: {
+                  Authorization: `token ${GITHUB_KEY}`,
+                  Accept: "application/vnd.github.v3+json",
+                },
+              }
+            ),
+            fetch(
+              `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/pulls/${prNumber}`,
+              {
+                headers: {
+                  Authorization: `token ${GITHUB_KEY}`,
+                  Accept: "application/vnd.github.v3+json",
+                },
+              }
+            ),
+          ]);
+
+          let reviews = [];
+          let requestedReviewers = [];
+
+          if (reviewsResponse.ok) {
+            reviews = await reviewsResponse.json();
+          }
+
+          if (prResponse.ok) {
+            const prData = await prResponse.json();
+            requestedReviewers = prData.requested_reviewers || [];
+          }
+
+          // Get the latest review from each reviewer (excluding bots and certain users)
+          const latestReviews = {};
+          reviews.forEach((review) => {
+            const reviewer = review.user.login;
+            // Exclude certain users from reviewers
+            if (
+              reviewer.includes("cubic") ||
+              reviewer.includes("cursor") ||
+              reviewer.includes("github")
+            ) {
+              return;
+            }
+            // Include all review states (APPROVED, CHANGES_REQUESTED, COMMENTED, etc.)
+            if (
+              !latestReviews[reviewer] ||
+              new Date(review.submitted_at) >
+                new Date(latestReviews[reviewer].submitted_at)
+            ) {
+              latestReviews[reviewer] = review;
+            }
+          });
+
+          // Add requested reviewers who haven't reviewed yet
+          requestedReviewers.forEach((requestedReviewer) => {
+            const reviewer = requestedReviewer.login;
+            // Exclude certain users
+            if (reviewer.includes("cubic") || reviewer.includes("cursor")) {
+              return;
+            }
+            // Only add if they haven't reviewed yet
+            if (!latestReviews[reviewer]) {
+              latestReviews[reviewer] = {
+                user: { login: reviewer },
+                state: "PENDING",
+                submitted_at: null,
+              };
+            }
+          });
+
+          const reviewList = Object.values(latestReviews);
+
+          // Determine overall review status
+          const hasChangesRequested = reviewList.some(
+            (review) => review.state === "CHANGES_REQUESTED"
+          );
+          const hasApproval = reviewList.some(
+            (review) => review.state === "APPROVED"
+          );
+          const hasPendingReviews = reviewList.some(
+            (review) => review.state === "PENDING"
+          );
+
+          let overallStatus;
+          if (hasChangesRequested) {
+            overallStatus = "changes_requested";
+          } else if (hasApproval && !hasChangesRequested) {
+            overallStatus = "approved";
+          } else if (reviewList.length === 0) {
+            overallStatus = "none";
+          } else {
+            overallStatus = "pending";
+          }
+
+          return {
+            status: overallStatus,
+            reviews: reviewList.map((review) => ({
+              reviewer: review.user.login,
+              state: review.state,
+              submitted_at: review.submitted_at,
+            })),
+          };
+        } catch (error) {
+          console.log(`Error fetching PR reviews for #${prNumber}:`, error);
+          return { status: "none", reviews: [] };
+        }
+      }
+
+      async function fetchPRChecks(sha, prNumber) {
+        try {
+          // Fetch both check runs and status checks (different CI systems use different APIs)
+          const [checkRunsResponse, statusResponse] = await Promise.all([
+            fetch(
+              `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits/${sha}/check-runs`,
+              {
+                headers: {
+                  Authorization: `token ${GITHUB_KEY}`,
+                  Accept: "application/vnd.github.v3+json",
+                },
+              }
+            ),
+            fetch(
+              `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits/${sha}/status`,
+              {
+                headers: {
+                  Authorization: `token ${GITHUB_KEY}`,
+                  Accept: "application/vnd.github.v3+json",
+                },
+              }
+            ),
+          ]);
+
+          let checkRuns = [];
+          let statuses = [];
+
+          if (checkRunsResponse.ok) {
+            const checkRunsData = await checkRunsResponse.json();
+            checkRuns = checkRunsData.check_runs || [];
+          }
+
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            statuses = statusData.statuses || [];
+          }
+
+          // Combine all checks into a unified format
+          const allChecks = [
+            ...checkRuns.map((check) => ({
+              name: check.name,
+              status:
+                check.conclusion === "success"
+                  ? "success"
+                  : check.conclusion === "failure" ||
+                    check.conclusion === "cancelled"
+                  ? "failure"
+                  : check.status === "in_progress" || check.status === "queued"
+                  ? "pending"
+                  : "neutral",
+              url: check.html_url,
+              type: "check_run",
+            })),
+            ...statuses.map((status) => ({
+              name: status.context,
+              status:
+                status.state === "success"
+                  ? "success"
+                  : status.state === "failure" || status.state === "error"
+                  ? "failure"
+                  : status.state === "pending"
+                  ? "pending"
+                  : "neutral",
+              url: status.target_url,
+              type: "status",
+            })),
+          ];
+
+          // If no checks or statuses found
+          if (allChecks.length === 0) {
+            return { status: "none", checks: [] };
+          }
+
+          // Determine overall status
+          const hasFailure = allChecks.some(
+            (check) => check.status === "failure"
+          );
+          const hasPending = allChecks.some(
+            (check) => check.status === "pending"
+          );
+          const allSuccess = allChecks.every(
+            (check) => check.status === "success"
+          );
+
+          let overallStatus;
+          if (hasFailure) {
+            overallStatus = "fail";
+          } else if (hasPending) {
+            overallStatus = "pending";
+          } else if (allSuccess) {
+            overallStatus = "pass";
+          } else {
+            overallStatus = "none";
+          }
+
+          return {
+            status: overallStatus,
+            checks: allChecks,
+          };
+        } catch (error) {
+          return { status: "none", checks: [] };
+        }
+      }
+
+      function renderKanbanBoard(prsByUser) {
+        const container = document.getElementById("kanban-board");
+        container.innerHTML = "";
+
+        // Sort users alphabetically
+        const sortedUsers = Object.keys(prsByUser).sort((a, b) => {
+          const nameA = NAME_MAP[a] || a;
+          const nameB = NAME_MAP[b] || b;
+          return nameA.localeCompare(nameB);
+        });
+
+        for (const username of sortedUsers) {
+          const prs = prsByUser[username];
+          const column = document.createElement("div");
+          column.className = "column";
+
+          const header = document.createElement("div");
+          header.className = "column-header";
+          const displayName = NAME_MAP[username] || username;
+          header.textContent = displayName;
+          column.appendChild(header);
+
+          // Sort PRs: most recent first
+          prs.sort((a, b) => {
+            return new Date(b.created_at) - new Date(a.created_at);
+          });
+
+          for (const pr of prs) {
+            const card = document.createElement("div");
+
+            // Check if the account has been requested for review
+            const hasAccountReview = pr.reviewStatus.reviews.some(
+              (review) =>
+                review.reviewer === ACCOUNT_NAME && review.state === "PENDING"
+            );
+
+            let cardClasses = ["pr-card"];
+            if (pr.draft) cardClasses.push("draft");
+            if (hasAccountReview) cardClasses.push("review-requested");
+            card.className = cardClasses.join(" ");
+
+            card.onclick = () => window.open(pr.html_url, "_blank");
+
+            // Generate review status HTML
+            const isApproved = pr.reviewStatus.status === "approved";
+            const reviewClass = isApproved ? "review-approved" : "";
+
+            let reviewHtml;
+            if (isApproved) {
+              reviewHtml = `<span class="review-status ${reviewClass}">Approved</span>`;
+            } else {
+              // Show inline review status for each reviewer when not approved
+              const reviewItems = pr.reviewStatus.reviews.map((review) => {
+                const statusIcon =
+                  review.state === "APPROVED"
+                    ? "✓"
+                    : review.state === "CHANGES_REQUESTED"
+                    ? "✗"
+                    : review.state === "COMMENTED"
+                    ? "◐"
+                    : review.state === "PENDING"
+                    ? "○"
+                    : "—";
+                const statusClass =
+                  review.state === "APPROVED"
+                    ? "status-success"
+                    : review.state === "CHANGES_REQUESTED"
+                    ? "status-failure"
+                    : review.state === "COMMENTED"
+                    ? "status-neutral"
+                    : review.state === "PENDING"
+                    ? "status-pending"
+                    : "status-neutral";
+                const displayName =
+                  NAME_MAP[review.reviewer] || review.reviewer;
+                return `<span class="inline-review-item ${statusClass}">${statusIcon} ${escapeHtml(
+                  displayName
+                )}</span>`;
+              });
+
+              if (reviewItems.length > 0) {
+                reviewHtml = `<div class="inline-reviews">${reviewItems.join(
+                  " "
+                )}</div>`;
+              } else {
+                reviewHtml = `<span class="review-status">No reviewers</span>`;
+              }
+            }
+
+            // Generate review tooltip content (keeping the tooltip for additional context)
+            const reviewTooltipContent =
+              pr.reviewStatus.reviews.length > 0
+                ? pr.reviewStatus.reviews
+                    .map((review) => {
+                      const statusIcon =
+                        review.state === "APPROVED"
+                          ? "✓"
+                          : review.state === "CHANGES_REQUESTED"
+                          ? "✗"
+                          : review.state === "COMMENTED"
+                          ? "◐"
+                          : review.state === "PENDING"
+                          ? "○"
+                          : "—";
+                      const statusClass =
+                        review.state === "APPROVED"
+                          ? "status-success"
+                          : review.state === "CHANGES_REQUESTED"
+                          ? "status-failure"
+                          : review.state === "COMMENTED"
+                          ? "status-neutral"
+                          : review.state === "PENDING"
+                          ? "status-pending"
+                          : "status-neutral";
+                      const displayName =
+                        NAME_MAP[review.reviewer] || review.reviewer;
+                      const statusText =
+                        review.state === "APPROVED"
+                          ? "Approved"
+                          : review.state === "CHANGES_REQUESTED"
+                          ? "Changes requested"
+                          : review.state === "COMMENTED"
+                          ? "Commented"
+                          : review.state === "PENDING"
+                          ? "Review requested"
+                          : "Unknown";
+                      return `<div class="review-tooltip-item">
+                     <span class="review-tooltip-status ${statusClass}">${statusIcon}</span>
+                     <span>${escapeHtml(displayName)} - ${statusText}</span>
+                   </div>`;
+                    })
+                    .join("")
+                : '<div class="review-tooltip-item">No reviewers assigned</div>';
+
+            // Generate checks status HTML
+            const checksStatusMap = {
+              pass: { class: "checks-pass", text: "✓" },
+              fail: { class: "checks-fail", text: "✗" },
+              pending: { class: "checks-pending", text: "○" },
+              none: { class: "checks-status", text: "—" },
+            };
+            const checksInfo =
+              checksStatusMap[pr.checksStatus.status] ||
+              checksStatusMap["none"];
+
+            // Generate tooltip content
+            const tooltipContent =
+              pr.checksStatus.checks.length > 0
+                ? pr.checksStatus.checks
+                    .map((check, index) => {
+                      const statusIcon =
+                        check.status === "success"
+                          ? "✓"
+                          : check.status === "failure"
+                          ? "✗"
+                          : check.status === "pending"
+                          ? "○"
+                          : "—";
+                      const statusClass = `status-${check.status}`;
+                      const hasUrl = check.url && check.url !== null;
+                      const clickable = hasUrl ? 'data-clickable="true"' : "";
+                      const url = check.url || "";
+                      return `<div class="checks-tooltip-item" ${clickable} data-url="${escapeHtml(
+                        url
+                      )}" data-check-index="${index}">
+                     <span class="checks-tooltip-status ${statusClass}">${statusIcon}</span>
+                     <span class="checks-tooltip-name">${escapeHtml(
+                       check.name
+                     )}</span>
+                   </div>`;
+                    })
+                    .join("")
+                : '<div class="checks-tooltip-item">No checks configured</div>';
+
+            card.innerHTML = `
+                         <div class="pr-header">
+                           <div class="pr-title-text">${escapeHtml(
+                             pr.title
+                           )}</div>
+                           <div class="pr-time-ago">${getTimeAgo(
+                             pr.created_at
+                           )}</div>
+                         </div>
+                         <div class="pr-meta">
+                           <div style="position: relative;">
+                             ${reviewHtml}
+                           </div>
+                           <div style="display: flex; gap: 8px; align-items: center;">
+                             <span class="lines-added">+${
+                               pr.additions || 0
+                             }</span>
+                             <span class="checks-status ${checksInfo.class}" 
+                                   data-pr-checks='${JSON.stringify(
+                                     pr.checksStatus.checks
+                                   ).replace(/'/g, "&apos;")}'
+                                   style="position: relative; cursor: help;">${
+                                     checksInfo.text
+                                   }</span>
+                           </div>
+                         </div>
+                     `;
+
+            // Create tooltips outside the card to avoid opacity inheritance
+            const checksTooltip = document.createElement("div");
+            checksTooltip.className = "checks-tooltip";
+            checksTooltip.style.display = "none";
+            checksTooltip.innerHTML = tooltipContent;
+            document.body.appendChild(checksTooltip);
+
+            const reviewTooltip = document.createElement("div");
+            reviewTooltip.className = "review-tooltip";
+            reviewTooltip.style.display = "none";
+            reviewTooltip.innerHTML = reviewTooltipContent;
+            document.body.appendChild(reviewTooltip);
+
+            column.appendChild(card);
+
+            // Add hover event listeners for tooltips
+            const checksElement = card.querySelector(".checks-status");
+            const reviewElement = card.querySelector(
+              ".review-status, .inline-reviews"
+            );
+
+            // Checks tooltip
+            if (checksElement && checksTooltip) {
+              let tooltipTimeout;
+
+              const showTooltip = () => {
+                clearTimeout(tooltipTimeout);
+                const rect = checksElement.getBoundingClientRect();
+                checksTooltip.style.display = "block";
+                checksTooltip.style.position = "fixed";
+                checksTooltip.style.left = rect.left - 100 + "px"; // Center tooltip
+                checksTooltip.style.top = rect.bottom + 2 + "px"; // Closer to trigger
+              };
+
+              const hideTooltip = () => {
+                tooltipTimeout = setTimeout(() => {
+                  checksTooltip.style.display = "none";
+                }, 300); // Longer delay to allow mouse movement to tooltip
+              };
+
+              checksElement.addEventListener("mouseenter", showTooltip);
+              checksElement.addEventListener("mouseleave", hideTooltip);
+
+              // Keep tooltip visible when hovering over it
+              checksTooltip.addEventListener("mouseenter", () => {
+                clearTimeout(tooltipTimeout);
+                checksTooltip.style.display = "block";
+              });
+
+              checksTooltip.addEventListener("mouseleave", hideTooltip);
+
+              // Add click handlers for individual check items
+              const tooltipItems = checksTooltip.querySelectorAll(
+                '.checks-tooltip-item[data-clickable="true"]'
+              );
+              tooltipItems.forEach((item) => {
+                item.addEventListener("click", (e) => {
+                  e.stopPropagation(); // Prevent card click
+                  const url = item.getAttribute("data-url");
+                  if (url) {
+                    window.open(url, "_blank");
+                  }
+                });
+              });
+            }
+
+            // Review tooltip
+            if (reviewElement && reviewTooltip) {
+              let reviewTooltipTimeout;
+
+              const showReviewTooltip = () => {
+                clearTimeout(reviewTooltipTimeout);
+                const rect = reviewElement.getBoundingClientRect();
+                reviewTooltip.style.display = "block";
+                reviewTooltip.style.position = "fixed";
+                reviewTooltip.style.left = rect.left + "px";
+                reviewTooltip.style.top = rect.bottom + 2 + "px"; // Closer to trigger
+              };
+
+              const hideReviewTooltip = () => {
+                reviewTooltipTimeout = setTimeout(() => {
+                  reviewTooltip.style.display = "none";
+                }, 300); // Longer delay to allow mouse movement to tooltip
+              };
+
+              reviewElement.addEventListener("mouseenter", showReviewTooltip);
+              reviewElement.addEventListener("mouseleave", hideReviewTooltip);
+
+              // Keep tooltip visible when hovering over it
+              reviewTooltip.addEventListener("mouseenter", () => {
+                clearTimeout(reviewTooltipTimeout);
+                reviewTooltip.style.display = "block";
+              });
+
+              reviewTooltip.addEventListener("mouseleave", hideReviewTooltip);
+            }
+          }
+
+          container.appendChild(column);
+        }
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function getTimeAgo(dateString) {
+        const now = new Date();
+        const created = new Date(dateString);
+        const diffMs = now - created;
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffHours / 24);
+
+        if (diffDays > 0) {
+          return `${diffDays}d`;
+        } else {
+          return `${diffHours}h`;
+        }
+      }
+
+      // Initialize
+      fetchPullRequests();
+    </script>
+  </body>
+</html>
