@@ -23,17 +23,19 @@
 
       .container {
         display: flex;
+        flex-wrap: wrap;
         height: 100vh;
         min-width: fit-content;
         padding: 16px;
         gap: 16px;
+        align-content: flex-start;
+        overflow-y: auto;
       }
 
       .column {
         width: 400px;
         padding: 12px;
-        height: calc(100vh - 32px);
-        overflow-y: auto;
+        flex: 0 0 auto;
       }
 
       .column-header {
@@ -41,6 +43,17 @@
         margin-bottom: 12px;
         padding-bottom: 8px;
         font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .user-avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 1px solid #30363d;
+        object-fit: cover;
       }
 
       .pr-card {
@@ -834,8 +847,16 @@
         const container = document.getElementById("kanban-board");
         container.innerHTML = "";
 
-        // Sort users alphabetically
+        // Sort users: NAME_MAP users first (alphabetically), then other users (alphabetically)
         const sortedUsers = Object.keys(prsByUser).sort((a, b) => {
+          const isAInNameMap = NAME_MAP.hasOwnProperty(a);
+          const isBInNameMap = NAME_MAP.hasOwnProperty(b);
+
+          // If one is in NAME_MAP and the other isn't, prioritize the NAME_MAP user
+          if (isAInNameMap && !isBInNameMap) return -1;
+          if (!isAInNameMap && isBInNameMap) return 1;
+
+          // If both are in NAME_MAP or both are not, sort alphabetically by display name
           const nameA = NAME_MAP[a] || a;
           const nameB = NAME_MAP[b] || b;
           return nameA.localeCompare(nameB);
@@ -849,7 +870,15 @@
           const header = document.createElement("div");
           header.className = "column-header";
           const displayName = NAME_MAP[username] || username;
-          header.textContent = displayName;
+
+          // Get avatar URL from the first PR's user data
+          const avatarUrl =
+            prs[0]?.user?.avatar_url || `https://github.com/${username}.png`;
+
+          header.innerHTML = `
+            <img src="${avatarUrl}" alt="${displayName}" class="user-avatar" />
+            <span>${escapeHtml(displayName)}</span>
+          `;
           column.appendChild(header);
 
           // Sort PRs: most recent first
