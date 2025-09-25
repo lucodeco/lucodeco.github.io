@@ -139,6 +139,14 @@
         color: #7d8590;
       }
 
+      .inline-review-item.re-review {
+        background: rgba(255, 165, 0, 0.1);
+        border: 1px solid rgba(255, 165, 0, 0.3);
+        border-radius: 3px;
+        padding: 2px 4px;
+        margin: 1px;
+      }
+
       .review-tooltip {
         position: absolute;
         background: #21262d;
@@ -640,6 +648,10 @@
             ) {
               return;
             }
+            // Skip dismissed reviews unless they're the only review from this reviewer
+            if (review.state === "DISMISSED" && latestReviews[reviewer]) {
+              return;
+            }
             // Include all review states (APPROVED, CHANGES_REQUESTED, COMMENTED, etc.)
             if (
               !latestReviews[reviewer] ||
@@ -650,19 +662,28 @@
             }
           });
 
-          // Add requested reviewers who haven't reviewed yet
+          // Add requested reviewers (including re-reviews)
           requestedReviewers.forEach((requestedReviewer) => {
             const reviewer = requestedReviewer.login;
             // Exclude certain users
             if (reviewer.includes("cubic") || reviewer.includes("cursor")) {
               return;
             }
-            // Only add if they haven't reviewed yet
+            // If they haven't reviewed yet, add as pending
             if (!latestReviews[reviewer]) {
               latestReviews[reviewer] = {
                 user: { login: reviewer },
                 state: "PENDING",
                 submitted_at: null,
+              };
+            } else {
+              // If they have an existing review but are in requested_reviewers,
+              // it means a re-review was requested, so mark as pending
+              latestReviews[reviewer] = {
+                user: { login: reviewer },
+                state: "PENDING",
+                submitted_at: null,
+                previousReview: latestReviews[reviewer], // Keep track of previous review
               };
             }
           });
@@ -839,7 +860,7 @@
           for (const pr of prs) {
             const card = document.createElement("div");
 
-            // Check if the account has been requested for review
+            // Check if the account has been requested for review (including re-reviews)
             const hasAccountReview = pr.reviewStatus.reviews.some(
               (review) =>
                 review.reviewer === ACCOUNT_NAME && review.state === "PENDING"
@@ -884,9 +905,15 @@
                     : "status-neutral";
                 const displayName =
                   NAME_MAP[review.reviewer] || review.reviewer;
-                return `<span class="inline-review-item ${statusClass}">${statusIcon} ${escapeHtml(
-                  displayName
-                )}</span>`;
+                const isReReview =
+                  review.state === "PENDING" && review.previousReview;
+                const reviewLabel = isReReview
+                  ? `${displayName} (re-review)`
+                  : displayName;
+                const reReviewClass = isReReview ? " re-review" : "";
+                return `<span class="inline-review-item ${statusClass}${reReviewClass}" title="${
+                  isReReview ? "Re-review requested" : ""
+                }">${statusIcon} ${escapeHtml(reviewLabel)}</span>`;
               });
 
               if (reviewItems.length > 0) {
@@ -933,7 +960,9 @@
                           : review.state === "COMMENTED"
                           ? "Commented"
                           : review.state === "PENDING"
-                          ? "Review requested"
+                          ? review.previousReview
+                            ? "Re-review requested"
+                            : "Review requested"
                           : "Unknown";
                       return `<div class="review-tooltip-item">
                      <span class="review-tooltip-status ${statusClass}">${statusIcon}</span>
