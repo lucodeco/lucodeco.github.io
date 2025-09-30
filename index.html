@@ -402,6 +402,9 @@
       const REPO_NAME = "junior"; // Replace with repository name
       let ACCOUNT_NAME = localStorage.getItem("account_name") || "";
 
+      // Cache configuration
+      const CACHE_KEY = `pr_data_${REPO_OWNER}_${REPO_NAME}`;
+
       // Username mapping
       const NAME_MAP = {
         mosnicholas: "Nico",
@@ -503,12 +506,39 @@
       // Make function globally accessible
       window.saveSetupAndStart = saveSetupAndStart;
 
+      // Cache management functions
+      function getCachedData() {
+        try {
+          const data = localStorage.getItem(CACHE_KEY);
+          return data ? JSON.parse(data) : null;
+        } catch (error) {
+          console.log("Error reading cache:", error);
+          return null;
+        }
+      }
+
+      function setCachedData(data) {
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        } catch (error) {
+          console.log("Error setting cache:", error);
+        }
+      }
+
       async function fetchPullRequests() {
         if (!GITHUB_KEY || !ACCOUNT_NAME) {
           showSetupForm();
           return;
         }
 
+        // Always show cached data first if available
+        const cachedData = getCachedData();
+        if (cachedData) {
+          console.log("Using cached data");
+          renderKanbanBoard(cachedData);
+        }
+
+        // Fetch fresh data in background
         try {
           // Fetch PRs with more details in a single request
           const response = await fetch(
@@ -580,11 +610,28 @@
             });
           });
 
+          // Cache the processed data
+          setCachedData(prsByUser);
+
+          // Update display with fresh data
+          if (cachedData) {
+            console.log("Background refresh completed, updating display");
+          } else {
+            console.log("Fresh data loaded");
+          }
+
           renderKanbanBoard(prsByUser);
         } catch (error) {
-          document.getElementById(
-            "kanban-board"
-          ).innerHTML = `<div class="error">Error loading PRs: ${error.message}</div>`;
+          // On error, try to show cached data if available
+          const cachedData = getCachedData();
+          if (cachedData) {
+            console.log("API failed, using cached data");
+            renderKanbanBoard(cachedData);
+          } else {
+            document.getElementById(
+              "kanban-board"
+            ).innerHTML = `<div class="error">Error loading PRs: ${error.message}</div>`;
+          }
         }
       }
 
@@ -1194,8 +1241,42 @@
         }
       }
 
+      // Auto-refresh functionality
+      let autoRefreshInterval;
+      const AUTO_REFRESH_INTERVAL = 3 * 60 * 1000; // 3 minutes
+
+      function startAutoRefresh() {
+        if (autoRefreshInterval) {
+          clearInterval(autoRefreshInterval);
+        }
+        autoRefreshInterval = setInterval(() => {
+          console.log("Auto-refreshing...");
+          fetchPullRequests();
+        }, AUTO_REFRESH_INTERVAL);
+      }
+
+      function stopAutoRefresh() {
+        if (autoRefreshInterval) {
+          clearInterval(autoRefreshInterval);
+          autoRefreshInterval = null;
+        }
+      }
+
+      // Handle page visibility changes
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          stopAutoRefresh();
+        } else {
+          // Refresh when page becomes visible
+          fetchPullRequests();
+          startAutoRefresh();
+        }
+      });
+
       // Initialize
-      fetchPullRequests();
+      fetchPullRequests().then(() => {
+        startAutoRefresh();
+      });
     </script>
   </body>
 </html>
