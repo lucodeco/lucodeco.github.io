@@ -388,6 +388,43 @@
       .setup-help a:hover {
         text-decoration: underline;
       }
+
+      .view-toggle {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 2000;
+        display: flex;
+        background: #21262d;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(1, 4, 9, 0.6);
+        font-size: 12px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .view-toggle button {
+        padding: 8px 14px;
+        background: transparent;
+        border: none;
+        color: #7d8590;
+        cursor: pointer;
+        font-size: 12px;
+        font-family: inherit;
+        transition: background-color 0.15s, color 0.15s;
+        white-space: nowrap;
+      }
+
+      .view-toggle button:hover {
+        background: #30363d;
+        color: #c9d1d9;
+      }
+
+      .view-toggle button.active {
+        background: #ffffff;
+        color: #0d1117;
+      }
     </style>
   </head>
   <body>
@@ -405,18 +442,24 @@
       // Cache configuration
       const CACHE_KEY = `pr_data_${REPO_OWNER}_${REPO_NAME}`;
 
+      // View mode: "all" or "recent3"
+      let viewMode = localStorage.getItem("view_mode") || "recent3";
+
       // Username mapping
       const NAME_MAP = {
         mosnicholas: "Nico",
         lucodeco: "Lucas",
         MichaelSextonJR: "Mike",
         "avilla-junior": "Andrew",
-        "shahrizod-jr": "Shahrizod",
+        "shahrizod-jr": "Shamo (Zyn Dealer)",
         "sethd-junior": "Seth",
         "gustavo-juniorai": "Gustavo",
         "ykim-24": "Daniel",
         "dependabot[bot]": "Dependabot",
         jamopark: "Jason",
+        "maggie-licata": "Maggie",
+        robertjuniorai: "Robert",
+        hrosshirt: "Master Harald",
       };
 
       function showSetupForm() {
@@ -897,8 +940,12 @@
         const container = document.getElementById("kanban-board");
         container.innerHTML = "";
 
-        // Sort users: NAME_MAP users first (alphabetically), then other users (alphabetically)
+        // Sort users: current account first, then NAME_MAP users (alphabetically), then others
         const sortedUsers = Object.keys(prsByUser).sort((a, b) => {
+          // Current logged-in account always comes first
+          if (a === ACCOUNT_NAME) return -1;
+          if (b === ACCOUNT_NAME) return 1;
+
           const isAInNameMap = NAME_MAP.hasOwnProperty(a);
           const isBInNameMap = NAME_MAP.hasOwnProperty(b);
 
@@ -928,6 +975,9 @@
           header.innerHTML = `
             <img src="${avatarUrl}" alt="${displayName}" class="user-avatar" />
             <span>${escapeHtml(displayName)}</span>
+            <span style="color: #484f58; font-weight: 400; font-size: 12px;">${
+              prs.length
+            }</span>
           `;
           column.appendChild(header);
 
@@ -936,7 +986,10 @@
             return new Date(b.created_at) - new Date(a.created_at);
           });
 
-          for (const pr of prs) {
+          // Limit to most recent 5 if toggle is set
+          const displayPrs = viewMode === "recent3" ? prs.slice(0, 3) : prs;
+
+          for (const pr of displayPrs) {
             const card = document.createElement("div");
 
             // Check if the account has been requested for review (including re-reviews)
@@ -1219,6 +1272,42 @@
 
           container.appendChild(column);
         }
+
+        // Render the view toggle
+        renderViewToggle();
+      }
+
+      function renderViewToggle() {
+        // Remove existing toggle if any
+        const existing = document.getElementById("view-toggle");
+        if (existing) existing.remove();
+
+        const toggle = document.createElement("div");
+        toggle.id = "view-toggle";
+        toggle.className = "view-toggle";
+        toggle.innerHTML = `
+          <button id="btn-all" class="${
+            viewMode === "all" ? "active" : ""
+          }">All PRs</button>
+          <button id="btn-recent3" class="${
+            viewMode === "recent3" ? "active" : ""
+          }">Recent 3</button>
+        `;
+        document.body.appendChild(toggle);
+
+        document.getElementById("btn-all").addEventListener("click", () => {
+          viewMode = "all";
+          localStorage.setItem("view_mode", viewMode);
+          const cached = getCachedData();
+          if (cached) renderKanbanBoard(cached);
+        });
+
+        document.getElementById("btn-recent3").addEventListener("click", () => {
+          viewMode = "recent3";
+          localStorage.setItem("view_mode", viewMode);
+          const cached = getCachedData();
+          if (cached) renderKanbanBoard(cached);
+        });
       }
 
       function escapeHtml(text) {
