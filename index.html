@@ -80,6 +80,11 @@
         box-shadow: 0 0 10px rgba(255, 165, 0, 0.2);
       }
 
+      .pr-card.approved {
+        border-color: rgba(86, 211, 100, 0.4);
+        box-shadow: 0 0 10px rgba(86, 211, 100, 0.2);
+      }
+
       .pr-title {
         font-weight: 500;
         margin-bottom: 12px;
@@ -1002,6 +1007,7 @@
             let cardClasses = ["pr-card"];
             if (pr.draft) cardClasses.push("draft");
             if (hasAccountReview) cardClasses.push("review-requested");
+            if (pr.reviewStatus.status === "approved") cardClasses.push("approved");
             card.className = cardClasses.join(" ");
 
             card.onclick = () => window.open(pr.html_url, "_blank");
